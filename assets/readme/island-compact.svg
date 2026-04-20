@@ -1,0 +1,39 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="160" y1="40" x2="1120" y2="680" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E1729"/>
+      <stop offset="1" stop-color="#05070C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(640 78) rotate(90) scale(90 280)">
+      <stop stop-color="#1772E7" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#1772E7" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="470" y="18" width="340" height="124" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <circle cx="1090" cy="120" r="220" fill="#101827" fill-opacity="0.55"/>
+  <circle cx="170" cy="610" r="240" fill="#0F2032" fill-opacity="0.4"/>
+
+  <g opacity="0.55">
+    <rect x="92" y="144" width="320" height="200" rx="28" fill="#0E1320" stroke="#1D2433"/>
+    <rect x="92" y="376" width="460" height="196" rx="28" fill="#0E1320" stroke="#1D2433"/>
+    <rect x="836" y="204" width="352" height="248" rx="28" fill="#0E1320" stroke="#1D2433"/>
+  </g>
+
+  <rect x="500" y="34" width="280" height="88" rx="44" fill="url(#glow)"/>
+  <g filter="url(#shadow)">
+    <rect x="494" y="28" width="292" height="76" rx="38" fill="#050505"/>
+    <rect x="495.5" y="29.5" width="289" height="73" rx="36.5" stroke="#3A3A3A"/>
+  </g>
+
+  <circle cx="535" cy="66" r="11" fill="#79C0FF"/>
+  <path d="M530 66H540M535 61V71" stroke="#050505" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="558" y="73" fill="#FAFAFA" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">DynaClip</text>
+  <rect x="698" y="49" width="48" height="32" rx="16" fill="#0F2032"/>
+  <text x="715" y="71" fill="#79C0FF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">12</text>
+
+  <text x="80" y="640" fill="#A1A1AA" font-family="Segoe UI, Arial, sans-serif" font-size="20">Compact island preview - appears on the active monitor when the pointer touches the top edge.</text>
+</svg>

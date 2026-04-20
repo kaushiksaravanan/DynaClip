@@ -1,0 +1,39 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="90" y1="70" x2="1190" y2="690" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1220"/>
+      <stop offset="1" stop-color="#05070C"/>
+    </linearGradient>
+    <filter id="shadow3" x="214" y="82" width="852" height="560" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="30" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg3)"/>
+  <circle cx="1100" cy="160" r="220" fill="#101827" fill-opacity="0.52"/>
+  <circle cx="160" cy="580" r="240" fill="#0D1B32" fill-opacity="0.35"/>
+
+  <g filter="url(#shadow3)">
+    <rect x="250" y="120" width="780" height="480" rx="24" fill="#2B2B2B"/>
+    <rect x="251" y="121" width="778" height="478" rx="23" fill="#050505"/>
+  </g>
+
+  <text x="290" y="182" fill="#FAFAFA" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">[Files] design-assets.zip (+2)</text>
+  <text x="818" y="181" fill="#A1A1AA" font-family="Segoe UI, Arial, sans-serif" font-size="18">Clip #7  Files  09:14</text>
+
+  <rect x="290" y="212" width="92" height="38" rx="19" fill="#1772E7"/>
+  <text x="319" y="237" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Copy</text>
+
+  <rect x="394" y="212" width="96" height="38" rx="19" fill="#171717" stroke="#2B2B2B"/>
+  <text x="418" y="237" fill="#FAFAFA" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Delete</text>
+
+  <rect x="290" y="274" width="700" height="280" rx="18" fill="#171717" stroke="#2B2B2B"/>
+  <text x="322" y="328" fill="#FAFAFA" font-family="Consolas, monospace" font-size="22">C:\work\design-assets.zip</text>
+  <text x="322" y="372" fill="#FAFAFA" font-family="Consolas, monospace" font-size="22">C:\work\release-notes.docx</text>
+  <text x="322" y="416" fill="#FAFAFA" font-family="Consolas, monospace" font-size="22">C:\work\dynaclip.ico</text>
+
+  <rect x="964" y="292" width="8" height="180" rx="4" fill="#0F2032"/>
+  <rect x="964" y="320" width="8" height="68" rx="4" fill="#79C0FF"/>
+
+  <text x="80" y="650" fill="#A1A1AA" font-family="Segoe UI, Arial, sans-serif" font-size="20">Detail window preview - long text, file lists, and other rich clipboard entries can open in their own pop-out windows.</text>
+</svg>

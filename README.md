@@ -1,101 +1,151 @@
-# DynaClip 📋
+# DynaClip
 
-**Your clipboard, but better.**
+Windows clipboard history as a Dynamic Island.
 
-Ever copied something, then copied something else, and lost that first thing forever? Yeah, we've all been there. DynaClip remembers everything you copy so you don't have to.
+DynaClip is a lightweight, memory-only clipboard utility that appears as a compact pill at the top of your screen and expands into a clipboard shelf when you click it.
 
----
+## Screenshots
 
-## What is it?
+### Compact island
 
-DynaClip is a tiny clipboard history tool that lives at the top of your screen. Just move your mouse to the top edge—boom, there it is. Move away, and it hides. Simple.
+![Compact island preview](assets/readme/island-compact.svg)
 
+### Expanded island
+
+![Expanded island preview](assets/readme/island-expanded.svg)
+
+### Detail pop-out window
+
+![Detail window preview](assets/readme/detail-window.svg)
+
+## Highlights
+
+- Dynamic Island-style compact pill and expanded shelf
+- Tray icon and global toggle hotkey
+- Multi-monitor aware positioning
+- Multi-window clip detail pop-outs
+- Text, file-list, and bitmap-image clipboard support
+- Memory-only history with no disk persistence of clipboard contents
+- Startup toggle, settings persistence, and release packaging assets
+
+## What it does
+
+- Shows a compact island when your mouse touches the top edge of the current monitor
+- Expands into a searchable clipboard shelf on click
+- Lets you re-copy, delete, and inspect clips quickly
+- Supports multi-monitor positioning
+- Supports multi-window clip pop-outs for long text
+- Supports text, file lists, and bitmap image clipboard entries
+- Keeps clipboard history in memory only
+
+## Main interactions
+
+- Reveal compact island: move mouse to the top edge of a monitor
+- Expand island: click the compact pill
+- Toggle by hotkey: `Ctrl+Shift+Space`
+- Search clips: `Ctrl+F` in the expanded island
+- Copy clip: single-click a clip card
+- Open clip in its own window: double-click a clip card
+- Delete clip: click `x`
+- Collapse: move away or press `Esc`
+
+## Settings menu
+
+Use the island menu to:
+
+- Clear all history
+- Toggle duplicate handling
+- Toggle auto-capture mode
+- See current item count
+- Exit the app
+
+## Auto-capture
+
+By default, DynaClip watches the clipboard but only stores text when you click `Add`.
+
+If you enable auto-capture from the menu, new clipboard text is automatically added to history.
+
+Supported clipboard formats:
+
+- Text
+- File lists
+- Bitmap images (DIB)
+
+## Running it
+
+### Python
+
+```bash
+pythonw dynaclip.py
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ 📋 DynaClip    [＋ Add] [⚙]    🔍 Search...    │ item1 │ item2 │ item3 │ │
-└──────────────────────────────────────────────────────────────────────────┘
-```
 
-## Why you'll like it
+Or double-click `DynaClip.bat`.
 
-- **It stays out of your way** — Only shows up when you need it
-- **Works on all your monitors** — Got 2 screens? 3? It follows your mouse
-- **Looks good** — Automatically matches your Windows dark/light theme
-- **Privacy first** — Nothing saved to disk. Close the app, history's gone
-- **Fast** — Click any item to copy it back. That's it.
+### Build a standalone exe
 
----
-
-## Getting Started
-
-### Just want to run it?
-
-Double-click **`DynaClip.bat`** and you're done.
-
-(Make sure you have Python installed. Most Windows machines do these days.)
-
-### Want a standalone .exe?
-
-```
+```bash
 pip install pyinstaller
-python -m PyInstaller --onefile --noconsole --name DynaClip dynaclip.py
+python -m PyInstaller DynaClip.spec
 ```
 
-You'll find it in the `dist` folder.
+The built executable will appear in `dist`.
 
-> ⚠️ **Heads up:** Windows might complain about the .exe (it's a false positive—happens with all PyInstaller apps). Either tell your antivirus to chill, or just stick with the .bat file.
+To install a simple startup launcher for the built app:
 
----
-
-## How to use it
-
-| What you want | What you do |
-|---------------|-------------|
-| See your clipboard history | Move mouse to top of screen |
-| Hide it | Move mouse away |
-| Reuse something you copied | Click on it |
-| Delete something | Hit the × button |
-| Find something specific | Start typing in the search box |
-| Change settings | Click the ⚙ gear |
-| Quit | Gear → Exit |
-
----
-
-## Settings
-
-Click the ⚙ to:
-
-- **Clear All** — Wipe your history clean
-- **Allow Duplicates** — Copied the same thing twice? Your call if you want both
-- **Exit** — Close DynaClip
-
----
-
-## Good to know
-
-**Is it safe?**
-Yes. It doesn't save anything to files, doesn't connect to the internet, and doesn't run any background stuff. Your clipboard history exists only in memory while the app is running.
-
-**What's in the folder?**
-```
-dynaclip/
-├── dynaclip.py      ← The actual app
-├── DynaClip.bat     ← Double-click this to run
-└── README.md        ← You're reading it
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-**It's not showing up!**
-Make sure your mouse is really at the very top edge (within 5 pixels). Also check if you're in a fullscreen app—that can block it.
+To uninstall the startup launcher:
 
-**Wrong monitor?**
-The bar shows up on whatever monitor you trigger it from. Move your mouse to the top of the other monitor to get it there.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
 
----
+To run the release build workflow:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_release.ps1
+```
+
+To build an installer, compile `DynaClip.iss` with Inno Setup after the exe has been built.
+
+Release artifacts and checklists:
+
+- `RELEASE_CHECKLIST.md`
+- `QA_MATRIX.md`
+- `RELEASE_NOTES_0.3.0.md`
+- `PRE_RELEASE_AUDIT.md`
+- `DynaClip.iss`
+
+## Notes
+
+- Windows only
+- Single-instance app; launching again will show a message instead of opening a second island
+- Clipboard history is not persisted to disk
+- Works per active monitor based on pointer location
+
+## Release workflow
+
+1. Run `python smoke_test.py`
+2. Build the exe with `powershell -ExecutionPolicy Bypass -File .\build_release.ps1`
+3. Validate behavior with `QA_MATRIX.md`
+4. Review `PRE_RELEASE_AUDIT.md`
+5. Compile `DynaClip.iss` with Inno Setup for an installer build
+
+## Project files
+
+```text
+dynaclip.py
+DynaClip.spec
+DynaClip.bat
+build_release.ps1
+install.ps1
+uninstall.ps1
+DynaClip.iss
+README.md
+```
 
 ## License
 
-MIT — Do whatever you want with it.
-
----
-
-Made with ☕ and mild frustration at losing copied text one too many times.
+See `LICENSE`.
