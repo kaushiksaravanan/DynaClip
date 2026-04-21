@@ -4,6 +4,8 @@ Windows clipboard history as a Dynamic Island.
 
 DynaClip is a lightweight, memory-only clipboard utility that appears as a compact pill at the top of your screen and expands into a clipboard shelf when you click it.
 
+- Landing page: `landing/index.html`
+
 ## Screenshots
 
 ### Compact island
@@ -25,7 +27,9 @@ DynaClip is a lightweight, memory-only clipboard utility that appears as a compa
 - Multi-monitor aware positioning
 - Multi-window clip detail pop-outs
 - Text, file-list, and bitmap-image clipboard support
-- Memory-only history with no disk persistence of clipboard contents
+- Sensitive-text filtering and auto-purge support
+- DPAPI-encrypted local settings and encrypted diagnostic logs
+- Memory-only history with no plaintext disk persistence of clipboard contents
 - Startup toggle, settings persistence, and release packaging assets
 
 ## What it does
@@ -70,6 +74,19 @@ Supported clipboard formats:
 - Text
 - File lists
 - Bitmap images (DIB)
+
+## Security model
+
+- Clipboard history stays in memory during runtime
+- Persisted app settings are stored encrypted with Windows DPAPI
+- Diagnostic logs are stored encrypted and do not contain clipboard payloads
+- Sensitive-looking text can be filtered before it enters history
+- Auto-purge trims in-memory history over time to reduce retained exposure
+
+Important note:
+
+- Clipboard contents themselves are not encrypted while held in RAM, because the app must display and restore them while running
+- Once content is copied back to the Windows clipboard, it is subject to normal Windows clipboard behavior and visibility
 
 ## Running it
 

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DynaClip - Secure Clipboard Island for Windows</title>
+    <meta
+      name="description"
+      content="DynaClip is a secure Windows clipboard island with encrypted local settings, sensitive-content filtering, multi-format clipboard support, and a Dynamic Island-style UI."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <nav class="topbar">
+          <div class="brand">
+            <div class="brand-mark">+</div>
+            <span>DynaClip</span>
+          </div>
+          <div class="topbar-links">
+            <a href="#security">Security</a>
+            <a href="#features">Features</a>
+            <a href="#release">Release</a>
+          </div>
+        </nav>
+
+        <section class="hero-content">
+          <div class="hero-copy">
+            <div class="eyebrow">Windows clipboard history, redesigned</div>
+            <h1>Secure clipboard recall in a Dynamic Island for Windows.</h1>
+            <p>
+              DynaClip brings top-edge clipboard access, encrypted local settings,
+              sensitive-content filtering, and multi-format clipboard support into a
+              fast, glanceable Windows utility.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-btn" href="../README.md">Read the docs</a>
+              <a class="secondary-btn" href="../RELEASE_CHECKLIST.md">Release checklist</a>
+            </div>
+            <div class="hero-metrics">
+              <div>
+                <strong>Text / Files / Images</strong>
+                <span>Multi-format clipboard support</span>
+              </div>
+              <div>
+                <strong>DPAPI-encrypted</strong>
+                <span>Settings and diagnostics at rest</span>
+              </div>
+              <div>
+                <strong>Ctrl+Shift+Space</strong>
+                <span>Global island toggle</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-visual">
+            <div class="orb"></div>
+            <div class="island-card compact">
+              <span class="dot"></span>
+              <span class="label">DynaClip</span>
+              <span class="count">12</span>
+            </div>
+            <div class="island-card expanded">
+              <div class="island-toolbar">
+                <div class="brand-inline">
+                  <span class="brand-mark small">+</span>
+                  <span>DynaClip</span>
+                </div>
+                <button>+ Add</button>
+                <div class="search">Search clips...</div>
+              </div>
+              <div class="clip-row">
+                <article>
+                  <h3>[Text] Release notes draft</h3>
+                  <span>09:12</span>
+                </article>
+                <article class="active">
+                  <h3>[Files] dynaclip.ico (+2)</h3>
+                  <span>09:14</span>
+                </article>
+                <article>
+                  <h3>[Image] Bitmap image</h3>
+                  <span>09:17</span>
+                </article>
+              </div>
+            </div>
+          </div>
+        </section>
+      </header>
+
+      <main>
+        <section class="section-grid" id="security">
+          <div class="section-copy">
+            <div class="eyebrow">Security posture</div>
+            <h2>Built to keep clipboard utility from becoming clipboard risk.</h2>
+            <p>
+              DynaClip keeps clipboard history in memory, encrypts persisted settings
+              and diagnostics with Windows DPAPI, and can skip obviously sensitive
+              text before it is ever added to history.
+            </p>
+          </div>
+          <div class="security-cards">
+            <article>
+              <h3>Encrypted local settings</h3>
+              <p>Run-at-startup, auto-capture, and security toggles are stored with DPAPI instead of plaintext registry values.</p>
+            </article>
+            <article>
+              <h3>Sensitive text filtering</h3>
+              <p>Patterns such as passwords, API keys, bearer tokens, and overly long text blobs can be blocked from history.</p>
+            </article>
+            <article>
+              <h3>Auto-purge window</h3>
+              <p>History ages out automatically so the app keeps less sensitive material resident in memory over time.</p>
+            </article>
+            <article>
+              <h3>Encrypted diagnostics</h3>
+              <p>Operational logs are stored encrypted and never contain clipboard payload data.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="feature-strip" id="features">
+          <article>
+            <span class="pill">Windows-native</span>
+            <h3>Top-edge reveal, tray integration, and startup hooks</h3>
+            <p>Feels like a desktop utility instead of a floating web app.</p>
+          </article>
+          <article>
+            <span class="pill">Multi-format</span>
+            <h3>Text, file lists, and bitmap image clipboard flows</h3>
+            <p>Quickly restore the clipboard in the same shape it was captured.</p>
+          </article>
+          <article>
+            <span class="pill">Multi-window</span>
+            <h3>Open clips in dedicated detail windows</h3>
+            <p>Inspect longer entries without forcing the island open all the time.</p>
+          </article>
+        </section>
+
+        <section class="release-panel" id="release">
+          <div>
+            <div class="eyebrow">Release readiness</div>
+            <h2>Shaped for a production release cycle.</h2>
+            <p>
+              The repo includes build scripts, installer assets, QA matrices, release
+              notes, and a pre-release audit so shipping the app is a workflow, not a guess.
+            </p>
+          </div>
+          <div class="release-links">
+            <a href="../build_release.ps1">Build script</a>
+            <a href="../DynaClip.iss">Installer script</a>
+            <a href="../QA_MATRIX.md">QA matrix</a>
+            <a href="../PRE_RELEASE_AUDIT.md">Pre-release audit</a>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

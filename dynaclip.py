@@ -7,14 +7,17 @@ centered pill at the top of the current monitor. Clicking the pill expands
 it into a clipboard shelf for quick recall and reuse.
 """
 
+import base64
 import ctypes
 from ctypes import wintypes
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
+import json
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import logging
 import os
+import re
 import struct
 import sys
 import tkinter as tk
@@ -64,6 +67,9 @@ GHND = GMEM_MOVEABLE | GMEM_ZEROINIT
 IMAGE_ICON = 1
 LR_LOADFROMFILE = 0x0010
 LR_DEFAULTSIZE = 0x0040
+CRYPTPROTECT_UI_FORBIDDEN = 0x0001
+SETTINGS_FILE_NAME = "settings.dat"
+LOG_FILE_NAME = "dynaclip.log.enc"
 WNDPROC = ctypes.WINFUNCTYPE(
     ctypes.c_long,
     wintypes.HWND,
@@ -96,18 +102,115 @@ def setup_logger() -> tuple[logging.Logger, Path | None]:
     try:
         log_dir = get_app_data_dir() / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        handler = RotatingFileHandler(
-            log_dir / "dynaclip.log",
-            maxBytes=256 * 1024,
-            backupCount=3,
-            encoding="utf-8",
-        )
+        handler = EncryptedRotatingFileHandler(log_dir / LOG_FILE_NAME)
         handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         logger.addHandler(handler)
         logger._dynaclip_log_dir = log_dir
     except Exception:
         logger.addHandler(logging.NullHandler())
     return logger, log_dir
+
+
+class DATA_BLOB(ctypes.Structure):
+    _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_byte))]
+
+
+def _make_blob(data: bytes) -> DATA_BLOB:
+    if not data:
+        return DATA_BLOB(0, None)
+    buffer = (ctypes.c_byte * len(data)).from_buffer_copy(data)
+    return DATA_BLOB(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_byte)))
+
+
+def dpapi_protect(data: bytes, description: str = "DynaClip") -> bytes:
+    if not data:
+        return b""
+    crypt32 = ctypes.windll.crypt32
+    kernel32 = ctypes.windll.kernel32
+    in_blob = _make_blob(data)
+    out_blob = DATA_BLOB()
+    if not crypt32.CryptProtectData(
+        ctypes.byref(in_blob),
+        description,
+        None,
+        None,
+        None,
+        CRYPTPROTECT_UI_FORBIDDEN,
+        ctypes.byref(out_blob),
+    ):
+        raise ctypes.WinError()
+    try:
+        return ctypes.string_at(out_blob.pbData, out_blob.cbData)
+    finally:
+        if out_blob.pbData:
+            kernel32.LocalFree(out_blob.pbData)
+
+
+def dpapi_unprotect(data: bytes) -> bytes:
+    if not data:
+        return b""
+    crypt32 = ctypes.windll.crypt32
+    kernel32 = ctypes.windll.kernel32
+    in_blob = _make_blob(data)
+    out_blob = DATA_BLOB()
+    if not crypt32.CryptUnprotectData(
+        ctypes.byref(in_blob),
+        None,
+        None,
+        None,
+        None,
+        CRYPTPROTECT_UI_FORBIDDEN,
+        ctypes.byref(out_blob),
+    ):
+        raise ctypes.WinError()
+    try:
+        return ctypes.string_at(out_blob.pbData, out_blob.cbData)
+    finally:
+        if out_blob.pbData:
+            kernel32.LocalFree(out_blob.pbData)
+
+
+def scrub_sensitive_text(value: str) -> str:
+    compact = value.strip()
+    secret_patterns = [
+        r"(?i)api[_-]?key\s*[:=]\s*\S+",
+        r"(?i)password\s*[:=]\s*\S+",
+        r"(?i)secret\s*[:=]\s*\S+",
+        r"(?i)bearer\s+[a-z0-9._\-]+",
+        r"(?i)ghp_[a-z0-9]+",
+        r"(?i)sk-[a-z0-9]+",
+    ]
+    for pattern in secret_patterns:
+        if re.search(pattern, compact):
+            return "[redacted sensitive text]"
+    return compact
+
+
+class EncryptedRotatingFileHandler(logging.Handler):
+    def __init__(self, file_path: Path, max_entries: int = 400):
+        super().__init__()
+        self.file_path = file_path
+        self.max_entries = max_entries
+
+    def emit(self, record):
+        try:
+            message = self.format(record)
+            entries = []
+            if self.file_path.exists():
+                try:
+                    encrypted = self.file_path.read_bytes()
+                    decrypted = dpapi_unprotect(encrypted).decode("utf-8")
+                    entries = json.loads(decrypted)
+                except Exception:
+                    entries = []
+            entries.append(message)
+            entries = entries[-self.max_entries :]
+            protected = dpapi_protect(
+                json.dumps(entries, ensure_ascii=True).encode("utf-8")
+            )
+            self.file_path.write_bytes(protected)
+        except Exception:
+            pass
 
 
 def get_resource_path(*parts: str) -> Path:
@@ -306,6 +409,8 @@ class DynaClip:
         self.allow_duplicates = True
         self.auto_capture = False
         self.run_at_startup = False
+        self.filter_sensitive = True
+        self.auto_purge_minutes = 30
         self.last_clipboard = ""
         self.mouse_in_window = False
         self.hide_timer = None
@@ -384,42 +489,34 @@ class DynaClip:
             pass
 
     def _load_settings(self):
+        settings_path = get_app_data_dir() / SETTINGS_FILE_NAME
+        if not settings_path.exists():
+            return
         try:
-            import winreg
-
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, SETTINGS_KEY)
-            self.allow_duplicates = bool(
-                int(winreg.QueryValueEx(key, "AllowDuplicates")[0])
-            )
-            self.auto_capture = bool(int(winreg.QueryValueEx(key, "AutoCapture")[0]))
-            self.run_at_startup = bool(int(winreg.QueryValueEx(key, "RunAtStartup")[0]))
-            winreg.CloseKey(key)
-        except Exception:
-            pass
+            decrypted = dpapi_unprotect(settings_path.read_bytes()).decode("utf-8")
+            data = json.loads(decrypted)
+            self.allow_duplicates = bool(data.get("allow_duplicates", True))
+            self.auto_capture = bool(data.get("auto_capture", False))
+            self.run_at_startup = bool(data.get("run_at_startup", False))
+            self.filter_sensitive = bool(data.get("filter_sensitive", True))
+            self.auto_purge_minutes = int(data.get("auto_purge_minutes", 30))
+        except Exception as exc:
+            self.logger.warning("settings_load_failed error=%s", exc.__class__.__name__)
 
     def _save_settings(self):
         try:
-            import winreg
-
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, SETTINGS_KEY)
-            winreg.SetValueEx(
-                key,
-                "AllowDuplicates",
-                0,
-                winreg.REG_SZ,
-                "1" if self.allow_duplicates else "0",
-            )
-            winreg.SetValueEx(
-                key, "AutoCapture", 0, winreg.REG_SZ, "1" if self.auto_capture else "0"
-            )
-            winreg.SetValueEx(
-                key,
-                "RunAtStartup",
-                0,
-                winreg.REG_SZ,
-                "1" if self.run_at_startup else "0",
-            )
-            winreg.CloseKey(key)
+            settings_path = get_app_data_dir() / SETTINGS_FILE_NAME
+            payload = json.dumps(
+                {
+                    "allow_duplicates": self.allow_duplicates,
+                    "auto_capture": self.auto_capture,
+                    "run_at_startup": self.run_at_startup,
+                    "filter_sensitive": self.filter_sensitive,
+                    "auto_purge_minutes": self.auto_purge_minutes,
+                },
+                ensure_ascii=True,
+            ).encode("utf-8")
+            settings_path.write_bytes(dpapi_protect(payload))
         except Exception as exc:
             self.logger.warning("settings_save_failed error=%s", exc.__class__.__name__)
 
@@ -1334,6 +1431,14 @@ class DynaClip:
         )
         menu.add_command(
             label=(
+                "  [x] Filter Sensitive"
+                if self.filter_sensitive
+                else "  [ ] Filter Sensitive"
+            ),
+            command=self._toggle_sensitive_filter,
+        )
+        menu.add_command(
+            label=(
                 "  [x] Run at Startup"
                 if self.run_at_startup
                 else "  [ ] Run at Startup"
@@ -1342,6 +1447,7 @@ class DynaClip:
         )
         menu.add_separator()
         menu.add_command(label=f"  {len(self.items)} items in memory")
+        menu.add_command(label=f"  Auto purge after {self.auto_purge_minutes}m")
         menu.add_command(label=f"  {HOTKEY_LABEL} toggle hotkey")
         menu.add_separator()
         menu.add_command(label="  Exit", command=self._quit_app)
@@ -1371,6 +1477,33 @@ class DynaClip:
         self._save_settings()
         self._apply_startup_setting()
         self._set_status("Startup on" if self.run_at_startup else "Startup off")
+
+    def _toggle_sensitive_filter(self):
+        self.filter_sensitive = not self.filter_sensitive
+        self._save_settings()
+        self._set_status(
+            "Sensitive filter on" if self.filter_sensitive else "Sensitive filter off"
+        )
+
+    def _purge_expired_items(self):
+        if self.auto_purge_minutes <= 0:
+            return False
+        cutoff = datetime.now() - timedelta(minutes=self.auto_purge_minutes)
+        original_count = len(self.items)
+        self.items = [item for item in self.items if item.timestamp >= cutoff]
+        if len(self.items) != original_count:
+            self.logger.info("items_purged count=%s", original_count - len(self.items))
+            return True
+        return False
+
+    def _is_sensitive_item(self, kind: str, payload) -> bool:
+        if kind != "text" or not self.filter_sensitive:
+            return False
+        text = payload.strip()
+        if len(text) > 2000:
+            return True
+        redacted = scrub_sensitive_text(text)
+        return redacted != text
 
     def _read_clipboard_item(self):
         user32 = ctypes.windll.user32
@@ -1478,6 +1611,7 @@ class DynaClip:
             user32.CloseClipboard()
 
     def _refresh_items(self):
+        self._purge_expired_items()
         for widget in self.items_container.winfo_children():
             widget.destroy()
 
@@ -1775,6 +1909,11 @@ class DynaClip:
 
     def add_item(self, kind: str, payload):
         if not payload:
+            return
+
+        if self._is_sensitive_item(kind, payload):
+            self._set_status("Sensitive clip skipped")
+            self.logger.info("sensitive_item_skipped kind=%s", kind)
             return
 
         incoming_fingerprint = ClipboardItem(-1, kind, payload).fingerprint
