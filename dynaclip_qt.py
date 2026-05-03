@@ -151,17 +151,14 @@ class IslandSurface(QFrame):
         self._draw_compact_content(painter, rect)
 
     def _draw_expanded_band(self, painter: QPainter, rect: QRect):
-        row_height = 42
-        band_width = max(rect.width() - 36, 0)
-        band_x = rect.left() + 18
-        band_y = rect.top() + max((rect.height() - row_height) // 2 + 1, 0)
-        band_rect = QRect(band_x, band_y, band_width, row_height)
+        band_rect = rect.adjusted(18, 10, -18, -10)
+        band_radius = max(self._corner_radius - 6, 18)
 
         painter.save()
         painter.setOpacity(self._content_progress)
         painter.setPen(QPen(QColor(255, 255, 255, 18), 1))
         painter.setBrush(QColor(255, 255, 255, 6))
-        painter.drawRoundedRect(band_rect, 21, 21)
+        painter.drawRoundedRect(band_rect, band_radius, band_radius)
         painter.restore()
 
     def _draw_compact_content(self, painter: QPainter, rect: QRect):
@@ -385,12 +382,14 @@ class DynaClipQt(QWidget):
     PILL_HEIGHT = 44
     PILL_RADIUS = 22
     EXPANDED_WIDTH = 920
-    EXPANDED_HEIGHT = 78
+    EXPANDED_HEIGHT = 150
     EXPANDED_RADIUS = 28
     TOP_MARGIN = 10
-    EXPANDED_ROW_HEIGHT = 42
+    CONTROL_ROW_HEIGHT = 36
+    SEARCH_ROW_HEIGHT = 36
+    EXPANDED_ROW_HEIGHT = 48
     SURFACE_MARGIN_X = 18
-    SURFACE_MARGIN_Y = 10
+    SURFACE_MARGIN_Y = 12
 
     STATE_HIDDEN = "hidden"
     STATE_COMPACT = "compact"
@@ -488,12 +487,12 @@ class DynaClipQt(QWidget):
         self.expanded_opacity.setOpacity(0.0)
         self.expanded_container.setGraphicsEffect(self.expanded_opacity)
 
-        expanded_layout = QHBoxLayout(self.expanded_container)
+        expanded_layout = QVBoxLayout(self.expanded_container)
         expanded_layout.setContentsMargins(0, 0, 0, 0)
-        expanded_layout.setSpacing(14)
+        expanded_layout.setSpacing(8)
 
         controls = QWidget()
-        controls.setFixedHeight(self.EXPANDED_ROW_HEIGHT)
+        controls.setFixedHeight(self.CONTROL_ROW_HEIGHT)
         controls_layout = QHBoxLayout(controls)
         controls_layout.setContentsMargins(0, 0, 0, 0)
         controls_layout.setSpacing(10)
@@ -501,31 +500,53 @@ class DynaClipQt(QWidget):
         self.brand_label = QLabel("[]  DynaClip")
         self.brand_label.setStyleSheet("color: #f5f5f7; font: 700 12pt 'Segoe UI';")
         controls_layout.addWidget(self.brand_label)
+        controls_layout.addStretch(1)
 
         self.add_button = QPushButton("+ Add")
         self.add_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.add_button.setMinimumHeight(self.CONTROL_ROW_HEIGHT)
+        self.add_button.setMinimumWidth(84)
         self.add_button.setStyleSheet(self._button_style(primary=True))
         self.add_button.clicked.connect(lambda *_: self.add_from_clipboard())
         controls_layout.addWidget(self.add_button)
 
         self.menu_button = QToolButton()
-        self.menu_button.setText("...")
+        self.menu_button.setText("Menu")
         self.menu_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.menu_button.setMinimumHeight(self.CONTROL_ROW_HEIGHT)
+        self.menu_button.setMinimumWidth(72)
         self.menu_button.setStyleSheet(self._button_style(primary=False))
         self.menu_button.clicked.connect(lambda *_: self._show_menu())
         controls_layout.addWidget(self.menu_button)
+        expanded_layout.addWidget(controls)
+
+        search_row = QWidget()
+        search_row.setFixedHeight(self.SEARCH_ROW_HEIGHT)
+        search_layout = QHBoxLayout(search_row)
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setSpacing(10)
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search")
         self.search_edit.setClearButtonEnabled(True)
-        self.search_edit.setFixedWidth(160)
+        self.search_edit.setMinimumHeight(self.SEARCH_ROW_HEIGHT)
+        self.search_edit.setMinimumWidth(0)
+        self.search_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.search_edit.setStyleSheet(
             "QLineEdit { background: rgba(255,255,255,0.08); color: #f4f4f5; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 8px 12px; font: 500 10pt 'Segoe UI'; }"
             "QLineEdit:focus { border-color: rgba(255,255,255,0.24); }"
         )
         self.search_edit.textChanged.connect(self._refresh_items)
-        controls_layout.addWidget(self.search_edit)
-        expanded_layout.addWidget(controls, 0)
+        search_layout.addWidget(self.search_edit, 1)
+
+        self.meta_label = QLabel("0 items")
+        self.meta_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.meta_label.setFixedHeight(self.SEARCH_ROW_HEIGHT)
+        self.meta_label.setMinimumWidth(96)
+        self.meta_label.setMaximumWidth(180)
+        self.meta_label.setStyleSheet("color: #a1a1aa; font: 500 9pt 'Segoe UI'; padding-left: 8px;")
+        search_layout.addWidget(self.meta_label, 0)
+        expanded_layout.addWidget(search_row)
 
         items_panel = QWidget()
         items_panel.setFixedHeight(self.EXPANDED_ROW_HEIGHT)
@@ -559,13 +580,7 @@ class DynaClipQt(QWidget):
 
         items_panel_layout.addWidget(self.items_scroll)
         items_panel_layout.addWidget(self.empty_label)
-        expanded_layout.addWidget(items_panel, 1)
-
-        self.meta_label = QLabel("0 items")
-        self.meta_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.meta_label.setFixedHeight(self.EXPANDED_ROW_HEIGHT)
-        self.meta_label.setStyleSheet("color: #a1a1aa; font: 500 9pt 'Segoe UI'; padding-left: 8px;")
-        expanded_layout.addWidget(self.meta_label, 0)
+        expanded_layout.addWidget(items_panel)
 
         self._layout_expanded_container()
 
@@ -588,13 +603,49 @@ class DynaClipQt(QWidget):
     def _layout_expanded_container(self):
         if not hasattr(self, "surface") or not hasattr(self, "expanded_container"):
             return
-        row_height = min(
-            self.EXPANDED_ROW_HEIGHT,
-            max(self.surface.height() - (self.SURFACE_MARGIN_Y * 2), 0),
-        )
         width = max(self.surface.width() - (self.SURFACE_MARGIN_X * 2), 0)
-        y = max((self.surface.height() - row_height) // 2 + 1, 0)
-        self.expanded_container.setGeometry(self.SURFACE_MARGIN_X, y, width, row_height)
+        height = max(self.surface.height() - (self.SURFACE_MARGIN_Y * 2), 0)
+        self.expanded_container.setGeometry(
+            self.SURFACE_MARGIN_X,
+            self.SURFACE_MARGIN_Y,
+            width,
+            height,
+        )
+
+    def _outer_horizontal_margin(self) -> int:
+        return max(16, min(38, self.work_width // 28))
+
+    def _compact_width_for_work_area(self) -> int:
+        max_available = max(self.work_width - (self._outer_horizontal_margin() * 2), 132)
+        return max(148, min(self.PILL_WIDTH, max_available))
+
+    def _expanded_width_for_work_area(self) -> int:
+        max_available = max(
+            self.work_width - (self._outer_horizontal_margin() * 2),
+            self._compact_width_for_work_area(),
+        )
+        preferred = max(560, int(self.work_width * 0.72))
+        return max(
+            self._compact_width_for_work_area(),
+            min(self.EXPANDED_WIDTH, preferred, max_available),
+        )
+
+    def _expanded_height_for_work_area(self, width: int) -> int:
+        preferred = self.EXPANDED_HEIGHT + (8 if width < 640 else 0)
+        max_available = max(self.work_height - self.TOP_MARGIN - 24, self.PILL_HEIGHT)
+        return max(self.PILL_HEIGHT, min(preferred, max_available))
+
+    def _refresh_work_area_for_state(self, target_state: str):
+        try:
+            if self.isVisible() and self.state != self.STATE_HIDDEN:
+                point = self.frameGeometry().center()
+            elif self.animating_to is not None and self.isVisible():
+                point = self.frameGeometry().center()
+            else:
+                point = QCursor.pos()
+            self._update_work_area_for_point(point.x(), point.y())
+        except Exception:
+            self._update_work_area_for_point(0, 0)
 
     def _load_settings(self):
         settings_path = get_app_data_dir() / SETTINGS_FILE_NAME
@@ -715,26 +766,31 @@ class DynaClipQt(QWidget):
             self.monitor_top = 0
 
     def _update_work_area(self):
-        self._update_work_area_for_point(0, 0)
+        try:
+            point = QCursor.pos()
+            self._update_work_area_for_point(point.x(), point.y())
+        except Exception:
+            self._update_work_area_for_point(0, 0)
 
     def _centered_x(self, width: int) -> int:
         return self.work_left + max((self.work_width - width) // 2, 0)
 
     def _target_bounds_for_state(self, state: str):
+        self._refresh_work_area_for_state(state)
         if state == self.STATE_EXPANDED:
-            width = min(self.EXPANDED_WIDTH, self.work_width - 40)
-            height = self.EXPANDED_HEIGHT
+            width = self._expanded_width_for_work_area()
+            height = self._expanded_height_for_work_area(width)
             radius = self.EXPANDED_RADIUS
             x = self._centered_x(width)
             y = self.work_top + self.TOP_MARGIN
         elif state == self.STATE_COMPACT:
-            width = self.PILL_WIDTH
+            width = self._compact_width_for_work_area()
             height = self.PILL_HEIGHT
             radius = self.PILL_RADIUS
             x = self._centered_x(width)
             y = self.work_top + self.TOP_MARGIN
         else:
-            width = self.PILL_WIDTH
+            width = self._compact_width_for_work_area()
             height = self.PILL_HEIGHT
             radius = self.PILL_RADIUS
             x = self._centered_x(width)
@@ -772,7 +828,7 @@ class DynaClipQt(QWidget):
         sequence = QSequentialAnimationGroup(self)
 
         if self.animating_to == self.STATE_EXPANDED:
-            squeeze_width = max(start.width() - 10, self.PILL_WIDTH - 6)
+            squeeze_width = max(start.width() - 10, self._compact_width_for_work_area() - 6)
             squeeze_height = max(start.height() - 3, self.PILL_HEIGHT - 2)
             squeeze = QRect(
                 start.center().x() - squeeze_width // 2,
@@ -782,7 +838,7 @@ class DynaClipQt(QWidget):
             )
             stretch_width = min(
                 target.width() + 12,
-                QApplication.primaryScreen().availableGeometry().width() - 24,
+                max(self.work_width - (self._outer_horizontal_margin() * 2), target.width()),
             )
             stretch = QRect(
                 target.center().x() - stretch_width // 2,
@@ -814,9 +870,9 @@ class DynaClipQt(QWidget):
             sequence.addAnimation(phase_three)
         else:
             collapse_mid = QRect(
-                start.center().x() - (self.PILL_WIDTH + 10) // 2,
+                start.center().x() - (target.width() + 10) // 2,
                 start.y() + 4,
-                self.PILL_WIDTH + 10,
+                target.width() + 10,
                 max(self.PILL_HEIGHT + 2, start.height() - 18),
             )
 
@@ -1102,10 +1158,11 @@ class DynaClipQt(QWidget):
         super().leaveEvent(event)
 
     def _show_menu(self):
+        self._refresh_work_area_for_state(self.state)
         menu = QMenu(self)
         menu.setStyleSheet(
-            "QMenu { background: #17191e; color: #f4f4f5; border: 1px solid rgba(255,255,255,0.08); padding: 6px; }"
-            "QMenu::item { padding: 8px 20px; border-radius: 8px; }"
+            "QMenu { background: #17191e; color: #f4f4f5; border: 1px solid rgba(255,255,255,0.08); padding: 4px; font: 500 9pt 'Segoe UI'; }"
+            "QMenu::item { padding: 7px 14px; border-radius: 8px; }"
             "QMenu::item:selected { background: rgba(255,255,255,0.08); }"
         )
 
@@ -1147,9 +1204,21 @@ class DynaClipQt(QWidget):
         exit_action.triggered.connect(lambda *_: self._quit_app())
 
         pos = self.menu_button.mapToGlobal(self.menu_button.rect().bottomLeft())
+        menu_size = menu.sizeHint()
+        screen = QGuiApplication.screenAt(pos) or self.screen() or QApplication.primaryScreen()
+        if screen:
+            available = screen.availableGeometry()
+            x = min(max(pos.x(), available.left() + 8), available.right() - menu_size.width() - 8)
+            y = pos.y() + 6
+            if y + menu_size.height() > available.bottom() - 8:
+                top_pos = self.menu_button.mapToGlobal(self.menu_button.rect().topLeft())
+                y = max(available.top() + 8, top_pos.y() - menu_size.height() - 6)
+            pos = QPoint(x, y)
+        else:
+            pos = pos + QPoint(0, 6)
         if self.hide_timer.isActive():
             self.hide_timer.stop()
-        menu.exec(pos + QPoint(0, 6))
+        menu.exec(pos)
         if not self._is_pointer_inside_any_window():
             self._schedule_hide(self.EXPANDED_HIDE_DELAY if self.state == self.STATE_EXPANDED else self.HIDE_DELAY)
 
@@ -1503,6 +1572,7 @@ class DynaClipQt(QWidget):
             self.meta_label.setStyleSheet(
                 "color: #a1a1aa; font: 500 9pt 'Segoe UI'; padding-left: 8px;"
             )
+        self.meta_label.setToolTip(self.meta_label.text())
 
     def _focus_search(self):
         if self.state != self.STATE_EXPANDED:
