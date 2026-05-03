@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['dynaclip.py'],
+    ['dynaclip_qt.py'],
     pathex=[],
     binaries=[],
     datas=[],

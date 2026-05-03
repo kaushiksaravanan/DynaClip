@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 def main():
-    targets = [ROOT / "dynaclip.py", ROOT / "DynaClip.spec"]
+    targets = [ROOT / "dynaclip.py", ROOT / "dynaclip_qt.py", ROOT / "DynaClip.spec"]
     for target in targets:
         if target.suffix == ".py":
             py_compile.compile(str(target), doraise=True)

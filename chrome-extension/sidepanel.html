@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DynaClip</title>
+    <link rel="stylesheet" href="sidepanel.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <div>
+          <p class="eyebrow">DynaClip</p>
+          <h1>Clipboard shelf</h1>
+        </div>
+        <button id="capture-toggle" class="ghost-button" type="button" aria-pressed="true">Auto capture on</button>
+      </header>
+
+      <section class="toolbar">
+        <label class="search-wrap" for="search-input">
+          <span class="visually-hidden">Search clips</span>
+          <input id="search-input" type="search" placeholder="Search clips">
+        </label>
+        <div class="actions">
+          <button id="add-clipboard" type="button">Add from clipboard</button>
+          <button id="clear-items" class="ghost-button" type="button">Clear</button>
+        </div>
+      </section>
+
+      <section class="hover-settings">
+        <button id="hover-copy-toggle" class="ghost-button" type="button" aria-pressed="false">Hover copy off</button>
+        <label class="delay-wrap" for="hover-delay">
+          <span>Delay</span>
+          <select id="hover-delay">
+            <option value="400">0.4s</option>
+            <option value="800">0.8s</option>
+            <option value="1200">1.2s</option>
+            <option value="2000">2.0s</option>
+          </select>
+        </label>
+      </section>
+
+      <p id="status" class="status">Waiting for copied text.</p>
+      <section id="items" class="items" aria-live="polite"></section>
+    </main>
+
+    <template id="item-template">
+      <article class="item">
+        <button class="item-main" type="button">
+          <span class="item-meta"></span>
+          <strong class="item-text"></strong>
+        </button>
+        <button class="delete-button" type="button" aria-label="Delete clip">x</button>
+      </article>
+    </template>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

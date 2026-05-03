@@ -11,312 +11,69 @@ import base64
 import ctypes
 from ctypes import wintypes
 from datetime import datetime, timedelta
-import hashlib
-import json
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
-import logging
-import os
-import re
 import struct
-import sys
 import tkinter as tk
 from tkinter import messagebox
 
-
-GWL_EXSTYLE = -20
-WS_EX_TOOLWINDOW = 0x00000080
-WS_EX_APPWINDOW = 0x00040000
-WS_EX_NOACTIVATE = 0x08000000
-MONITOR_DEFAULTTONEAREST = 2
-ERROR_ALREADY_EXISTS = 183
-MUTEX_NAME = "Local\\DynaClipSingleton"
-WM_HOTKEY = 0x0312
-MOD_ALT = 0x0001
-MOD_CONTROL = 0x0002
-MOD_SHIFT = 0x0004
-MOD_NOREPEAT = 0x4000
-VK_SPACE = 0x20
-HOTKEY_ID = 1
-HOTKEY_MODIFIERS = MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT
-HOTKEY_LABEL = "Ctrl+Shift+Space"
-WM_APP = 0x8000
-TRAY_CALLBACK_MSG = WM_APP + 1
-NIM_ADD = 0x00000000
-NIM_MODIFY = 0x00000001
-NIM_DELETE = 0x00000002
-NIF_MESSAGE = 0x00000001
-NIF_ICON = 0x00000002
-NIF_TIP = 0x00000004
-WM_LBUTTONUP = 0x0202
-WM_LBUTTONDBLCLK = 0x0203
-WM_RBUTTONUP = 0x0205
-WM_CONTEXTMENU = 0x007B
-GWL_WNDPROC = -4
-IDI_APPLICATION = 32512
-TRAY_UID = 1
-APP_VERSION = "0.3.0"
-SETTINGS_KEY = r"Software\DynaClip"
-RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-CF_DIB = 8
-CF_UNICODETEXT = 13
-CF_HDROP = 15
-GMEM_MOVEABLE = 0x0002
-GMEM_ZEROINIT = 0x0040
-GHND = GMEM_MOVEABLE | GMEM_ZEROINIT
-IMAGE_ICON = 1
-LR_LOADFROMFILE = 0x0010
-LR_DEFAULTSIZE = 0x0040
-CRYPTPROTECT_UI_FORBIDDEN = 0x0001
-SETTINGS_FILE_NAME = "settings.dat"
-LOG_FILE_NAME = "dynaclip.log.enc"
-WNDPROC = ctypes.WINFUNCTYPE(
-    ctypes.c_long,
-    wintypes.HWND,
-    wintypes.UINT,
-    wintypes.WPARAM,
-    wintypes.LPARAM,
+from dynaclip_core import (
+    APP_VERSION,
+    CF_DIB,
+    CF_HDROP,
+    CF_UNICODETEXT,
+    DROPFILES,
+    ERROR_ALREADY_EXISTS,
+    GHND,
+    GWL_EXSTYLE,
+    GWL_WNDPROC,
+    HOTKEY_ID,
+    HOTKEY_LABEL,
+    HOTKEY_MODIFIERS,
+    IDI_APPLICATION,
+    IMAGE_ICON,
+    LR_DEFAULTSIZE,
+    LR_LOADFROMFILE,
+    MOD_ALT,
+    MOD_CONTROL,
+    MOD_NOREPEAT,
+    MOD_SHIFT,
+    MONITORINFO,
+    MONITOR_DEFAULTTONEAREST,
+    MUTEX_NAME,
+    NIF_ICON,
+    NIF_MESSAGE,
+    NIF_TIP,
+    NIM_ADD,
+    NIM_DELETE,
+    NIM_MODIFY,
+    POINT,
+    RECT,
+    RUN_KEY,
+    SETTINGS_FILE_NAME,
+    TRAY_CALLBACK_MSG,
+    TRAY_UID,
+    VK_SPACE,
+    WM_APP,
+    WM_CONTEXTMENU,
+    WM_HOTKEY,
+    WM_LBUTTONDBLCLK,
+    WM_LBUTTONUP,
+    WM_RBUTTONUP,
+    WNDPROC,
+    WS_EX_APPWINDOW,
+    WS_EX_NOACTIVATE,
+    WS_EX_TOOLWINDOW,
+    ClipboardItem,
+    acquire_single_instance,
+    configure_win32_clipboard_api,
+    dpapi_protect,
+    dpapi_unprotect,
+    get_app_data_dir,
+    get_resource_path,
+    open_clipboard_with_retry,
+    scrub_sensitive_text,
+    setup_logger,
 )
-
-
-def get_app_data_dir() -> Path:
-    local_app_data = os.getenv("LOCALAPPDATA")
-    if local_app_data:
-        base = Path(local_app_data)
-    else:
-        base = Path.home() / "AppData" / "Local"
-    app_dir = base / "DynaClip"
-    app_dir.mkdir(parents=True, exist_ok=True)
-    return app_dir
-
-
-def setup_logger() -> tuple[logging.Logger, Path | None]:
-    logger = logging.getLogger("DynaClip")
-    if logger.handlers:
-        existing_path = getattr(logger, "_dynaclip_log_dir", None)
-        return logger, existing_path
-
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    log_dir = None
-    try:
-        log_dir = get_app_data_dir() / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        handler = EncryptedRotatingFileHandler(log_dir / LOG_FILE_NAME)
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-        logger.addHandler(handler)
-        logger._dynaclip_log_dir = log_dir
-    except Exception:
-        logger.addHandler(logging.NullHandler())
-    return logger, log_dir
-
-
-class DATA_BLOB(ctypes.Structure):
-    _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_byte))]
-
-
-def _make_blob(data: bytes) -> DATA_BLOB:
-    if not data:
-        return DATA_BLOB(0, None)
-    buffer = (ctypes.c_byte * len(data)).from_buffer_copy(data)
-    return DATA_BLOB(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_byte)))
-
-
-def dpapi_protect(data: bytes, description: str = "DynaClip") -> bytes:
-    if not data:
-        return b""
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
-    in_blob = _make_blob(data)
-    out_blob = DATA_BLOB()
-    if not crypt32.CryptProtectData(
-        ctypes.byref(in_blob),
-        description,
-        None,
-        None,
-        None,
-        CRYPTPROTECT_UI_FORBIDDEN,
-        ctypes.byref(out_blob),
-    ):
-        raise ctypes.WinError()
-    try:
-        return ctypes.string_at(out_blob.pbData, out_blob.cbData)
-    finally:
-        if out_blob.pbData:
-            kernel32.LocalFree(out_blob.pbData)
-
-
-def dpapi_unprotect(data: bytes) -> bytes:
-    if not data:
-        return b""
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
-    in_blob = _make_blob(data)
-    out_blob = DATA_BLOB()
-    if not crypt32.CryptUnprotectData(
-        ctypes.byref(in_blob),
-        None,
-        None,
-        None,
-        None,
-        CRYPTPROTECT_UI_FORBIDDEN,
-        ctypes.byref(out_blob),
-    ):
-        raise ctypes.WinError()
-    try:
-        return ctypes.string_at(out_blob.pbData, out_blob.cbData)
-    finally:
-        if out_blob.pbData:
-            kernel32.LocalFree(out_blob.pbData)
-
-
-def scrub_sensitive_text(value: str) -> str:
-    compact = value.strip()
-    secret_patterns = [
-        r"(?i)api[_-]?key\s*[:=]\s*\S+",
-        r"(?i)password\s*[:=]\s*\S+",
-        r"(?i)secret\s*[:=]\s*\S+",
-        r"(?i)bearer\s+[a-z0-9._\-]+",
-        r"(?i)ghp_[a-z0-9]+",
-        r"(?i)sk-[a-z0-9]+",
-    ]
-    for pattern in secret_patterns:
-        if re.search(pattern, compact):
-            return "[redacted sensitive text]"
-    return compact
-
-
-class EncryptedRotatingFileHandler(logging.Handler):
-    def __init__(self, file_path: Path, max_entries: int = 400):
-        super().__init__()
-        self.file_path = file_path
-        self.max_entries = max_entries
-
-    def emit(self, record):
-        try:
-            message = self.format(record)
-            entries = []
-            if self.file_path.exists():
-                try:
-                    encrypted = self.file_path.read_bytes()
-                    decrypted = dpapi_unprotect(encrypted).decode("utf-8")
-                    entries = json.loads(decrypted)
-                except Exception:
-                    entries = []
-            entries.append(message)
-            entries = entries[-self.max_entries :]
-            protected = dpapi_protect(
-                json.dumps(entries, ensure_ascii=True).encode("utf-8")
-            )
-            self.file_path.write_bytes(protected)
-        except Exception:
-            pass
-
-
-def get_resource_path(*parts: str) -> Path:
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        base = Path(sys._MEIPASS)
-    else:
-        base = Path(__file__).resolve().parent
-    return base.joinpath(*parts)
-
-
-class POINT(ctypes.Structure):
-    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
-
-
-class RECT(ctypes.Structure):
-    _fields_ = [
-        ("left", ctypes.c_long),
-        ("top", ctypes.c_long),
-        ("right", ctypes.c_long),
-        ("bottom", ctypes.c_long),
-    ]
-
-
-class MONITORINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", ctypes.c_ulong),
-        ("rcMonitor", RECT),
-        ("rcWork", RECT),
-        ("dwFlags", ctypes.c_ulong),
-    ]
-
-
-class DROPFILES(ctypes.Structure):
-    _fields_ = [
-        ("pFiles", wintypes.DWORD),
-        ("x", wintypes.LONG),
-        ("y", wintypes.LONG),
-        ("fNC", wintypes.BOOL),
-        ("fWide", wintypes.BOOL),
-    ]
-
-
-class ClipboardItem:
-    __slots__ = ("id", "kind", "payload", "timestamp", "fingerprint")
-
-    def __init__(self, item_id: int, kind: str, payload):
-        self.id = item_id
-        self.kind = kind
-        self.payload = payload
-        self.timestamp = datetime.now()
-        self.fingerprint = self._build_fingerprint()
-
-    def _build_fingerprint(self) -> str:
-        if self.kind == "text":
-            content = self.payload or ""
-        elif self.kind == "files":
-            content = "\n".join(self.payload)
-        elif self.kind == "image":
-            content = hashlib.sha1(self.payload).hexdigest()
-        else:
-            content = str(self.payload)
-        return f"{self.kind}:{content}"
-
-    @property
-    def text(self) -> str:
-        if self.kind == "text":
-            return self.payload
-        if self.kind == "files":
-            count = len(self.payload)
-            noun = "file" if count == 1 else "files"
-            return f"{count} {noun}\n" + "\n".join(self.payload)
-        if self.kind == "image":
-            return f"Bitmap image ({len(self.payload)} bytes)"
-        return ""
-
-    @property
-    def kind_label(self) -> str:
-        if self.kind == "text":
-            return "Text"
-        if self.kind == "files":
-            return "Files"
-        if self.kind == "image":
-            return "Image"
-        return "Data"
-
-    @property
-    def display_text(self) -> str:
-        if self.kind == "files":
-            count = len(self.payload)
-            first = Path(self.payload[0]).name if self.payload else "files"
-            label = f"{first} (+{count - 1})" if count > 1 else first
-            return f"[{self.kind_label}] {label}"
-        if self.kind == "image":
-            return f"[{self.kind_label}] Bitmap image"
-        if not self.text:
-            return "(empty)"
-        single_line = (
-            self.text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").strip()
-        )
-        prefix = f"[{self.kind_label}] " if self.kind != "text" else ""
-        display = single_line[:44] + "..." if len(single_line) > 44 else single_line
-        return prefix + display
-
-    @property
-    def formatted_timestamp(self) -> str:
-        return self.timestamp.strftime("%H:%M")
 
 
 class ModernTheme:
@@ -382,8 +139,8 @@ class DynaClip:
     HIDE_DELAY = 900
     EXPANDED_HIDE_DELAY = 650
     MAX_ITEMS = 50
-    ANIM_STEPS = 12
-    ANIM_INTERVAL = 14
+    ANIM_STEPS = 120
+    ANIM_INTERVAL = 4
 
     PILL_WIDTH = 168
     PILL_HEIGHT = 38
@@ -779,6 +536,8 @@ class DynaClip:
         )
 
     def _apply_visual_chrome(self, state: str, glow_pad=None):
+        if not hasattr(self, "outer_glow") or not hasattr(self, "shell_border"):
+            return
         if glow_pad is None:
             glow_pad = self._glow_pad_for_state(state)
         glow_color = (
@@ -822,15 +581,23 @@ class DynaClip:
         except Exception:
             pass
 
-    def _apply_geometry(self, x: int, y: int, width: int, height: int, radius: int):
+    def _apply_geometry(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        radius: int,
+        apply_region: bool = True,
+    ):
         self.current_x = x
         self.current_y = y
         self.current_width = width
         self.current_height = height
         self.current_radius = radius
         self.root.geometry(f"{width}x{height}+{x}+{y}")
-        self.root.update_idletasks()
-        self._apply_round_region(width, height, radius)
+        if apply_region:
+            self._apply_round_region(width, height, radius)
 
     def _safe_after(self, delay, callback):
         def wrapped():
@@ -852,6 +619,9 @@ class DynaClip:
         c1 = 1.70158
         c3 = c1 + 1
         return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2
+
+    def _ease_out_cubic(self, t: float) -> float:
+        return 1 - (1 - t) ** 3
 
     def _animate_to_state(self, target_state: str):
         if self.animating:
@@ -885,10 +655,7 @@ class DynaClip:
                 start_radius,
             )
 
-        if target_state == self.STATE_EXPANDED:
-            self.expanded_shell.pack(fill="both", expand=True)
-            self.compact_shell.place_forget()
-        elif target_state == self.STATE_COMPACT:
+        if target_state == self.STATE_COMPACT:
             self.compact_shell.place(relx=0.5, rely=0.5, anchor="center")
 
         start_glow = self._glow_pad_for_state(self.state)
@@ -901,25 +668,21 @@ class DynaClip:
         def tick():
             step[0] += 1
             t = min(step[0] / self.ANIM_STEPS, 1.0)
-            if target_state == self.STATE_EXPANDED or (
-                target_state == self.STATE_COMPACT and self.state == self.STATE_HIDDEN
-            ):
-                eased = self._ease_out_back(t)
-            else:
-                eased = 1 - (1 - t) ** 3
+            eased = self._ease_out_cubic(t)
             x = int(start[0] + (end[0] - start[0]) * eased)
             y = int(start[1] + (end[1] - start[1]) * eased)
             width = int(start[2] + (end[2] - start[2]) * eased)
             height = int(start[3] + (end[3] - start[3]) * eased)
             radius = int(start[4] + (end[4] - start[4]) * eased)
             glow_pad = int(start_glow + (end_glow - start_glow) * min(max(t, 0.0), 1.0))
-            self._apply_geometry(x, y, width, height, radius)
+            self._apply_geometry(x, y, width, height, radius, apply_region=False)
             self._apply_visual_chrome(target_state, glow_pad)
             if t < 1.0:
                 self.root.after(self.ANIM_INTERVAL, tick)
             else:
                 self.animating = False
                 self.state = target_state
+                self._apply_round_region(end[2], end[3], end[4])
                 self._apply_visual_chrome(target_state)
                 self._sync_layout_for_state()
                 if self.pending_state and self.pending_state != self.state:
@@ -930,6 +693,8 @@ class DynaClip:
         tick()
 
     def _sync_layout_for_state(self):
+        if not hasattr(self, "compact_shell") or not hasattr(self, "expanded_shell"):
+            return
         if self.state == self.STATE_EXPANDED:
             self.compact_shell.place_forget()
             self.expanded_shell.pack(fill="both", expand=True)
@@ -1506,11 +1271,9 @@ class DynaClip:
         return redacted != text
 
     def _read_clipboard_item(self):
-        user32 = ctypes.windll.user32
-        kernel32 = ctypes.windll.kernel32
-        shell32 = ctypes.windll.shell32
+        user32, kernel32, shell32 = configure_win32_clipboard_api()
 
-        if not user32.OpenClipboard(None):
+        if not open_clipboard_with_retry(user32):
             return None
         try:
             if user32.IsClipboardFormatAvailable(CF_HDROP):
@@ -1549,8 +1312,7 @@ class DynaClip:
         return None
 
     def _copy_files_to_clipboard(self, files):
-        user32 = ctypes.windll.user32
-        kernel32 = ctypes.windll.kernel32
+        user32, kernel32, _ = configure_win32_clipboard_api()
         payload = "\0".join(files) + "\0\0"
         payload_bytes = payload.encode("utf-16le")
         structure = DROPFILES()
@@ -1573,7 +1335,7 @@ class DynaClip:
         finally:
             kernel32.GlobalUnlock(h_global)
 
-        if not user32.OpenClipboard(None):
+        if not open_clipboard_with_retry(user32):
             kernel32.GlobalFree(h_global)
             raise RuntimeError("OpenClipboard failed")
         try:
@@ -1585,8 +1347,7 @@ class DynaClip:
             user32.CloseClipboard()
 
     def _copy_image_to_clipboard(self, dib_bytes):
-        user32 = ctypes.windll.user32
-        kernel32 = ctypes.windll.kernel32
+        user32, kernel32, _ = configure_win32_clipboard_api()
         h_global = kernel32.GlobalAlloc(GHND, len(dib_bytes))
         if not h_global:
             raise RuntimeError("GlobalAlloc failed")
@@ -1599,7 +1360,7 @@ class DynaClip:
         finally:
             kernel32.GlobalUnlock(h_global)
 
-        if not user32.OpenClipboard(None):
+        if not open_clipboard_with_retry(user32):
             kernel32.GlobalFree(h_global)
             raise RuntimeError("OpenClipboard failed")
         try:

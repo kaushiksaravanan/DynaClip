@@ -1,2 +1,2 @@
 @echo off
-pythonw "%~dp0dynaclip.py"
+pythonw "%~dp0dynaclip_qt.py"

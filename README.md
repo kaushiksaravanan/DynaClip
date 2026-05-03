@@ -93,10 +93,29 @@ Important note:
 ### Python
 
 ```bash
-pythonw dynaclip.py
+pythonw dynaclip_qt.py
 ```
 
 Or double-click `DynaClip.bat`.
+
+The legacy Tk implementation is still available as `dynaclip.py`.
+
+For the packaged desktop app, run `dist/DynaClip.exe`.
+
+### Qt prototype
+
+To compare a smoother compositor-backed animation path, install the Qt dependency and run the prototype:
+
+```bash
+pip install -r requirements-qt.txt
+python dynaclip_qt.py
+```
+
+## Chrome Extension Prototype
+
+There is also a browser-side prototype in `chrome-extension/` that keeps copied text in a single Chrome popup.
+
+Load it from `chrome://extensions` using **Load unpacked**, then select `chrome-extension`.
 
 ### Build a standalone exe
 
